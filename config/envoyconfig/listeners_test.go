@@ -278,6 +278,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
 					{Type: config.SANTypeIPAddress, Pattern: `10\.10\.42\..*`},
 					{Type: config.SANTypeURI, Pattern: `spiffe://example\.com/.*`},
+					{Type: config.SANTypeUPN, Pattern: `test_device`},
 				},
 			},
 		}}
@@ -321,6 +322,16 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						}
 					},
 					"sanType": "URI"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": "test_device"
+						}
+					},
+					"sanType": "OTHER_NAME",
+					"oid": "1.3.6.1.4.1.311.20.2.3"
 				}
 			],
 			"onlyVerifyLeafCertCrl": true,

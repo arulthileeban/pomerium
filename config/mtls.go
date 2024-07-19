@@ -51,6 +51,9 @@ const (
 
 	// SANTypeURI represents a URI.
 	SANTypeURI SANType = "uri"
+
+	// SANTypeUPN represents a UserPrincipalName.
+	SANTypeUPN SANType = "upn"
 )
 
 // DownstreamMTLSSettings specify the downstream client certificate requirements.
@@ -249,7 +252,7 @@ func (s *SANMatcher) MarshalJSON() ([]byte, error) {
 // ToEnvoyProto rerturns a representation of this matcher as an Envoy
 // SubjectAltNameMatcher proto.
 func (s *SANMatcher) ToEnvoyProto() *envoy_tls.SubjectAltNameMatcher {
-	return &envoy_tls.SubjectAltNameMatcher{
+	subjectAltNameMatcher := &envoy_tls.SubjectAltNameMatcher{
 		SanType: s.envoyType(),
 		Matcher: &envoy_matcher.StringMatcher{
 			MatchPattern: &envoy_matcher.StringMatcher_SafeRegex{
@@ -260,6 +263,13 @@ func (s *SANMatcher) ToEnvoyProto() *envoy_tls.SubjectAltNameMatcher {
 			},
 		},
 	}
+
+	// Add UPN's OID value to sanMatcher
+	if s.Type == SANTypeUPN {
+		subjectAltNameMatcher.Oid = "1.3.6.1.4.1.311.20.2.3"
+	}
+
+	return subjectAltNameMatcher
 }
 
 func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
@@ -272,6 +282,8 @@ func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
 		return envoy_tls.SubjectAltNameMatcher_IP_ADDRESS
 	case SANTypeURI:
 		return envoy_tls.SubjectAltNameMatcher_URI
+	case SANTypeUPN:
+		return envoy_tls.SubjectAltNameMatcher_OTHER_NAME
 	default:
 		return envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED
 	}

@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -243,6 +244,18 @@ func validateClientCertificateSANs(chain []*x509.Certificate, matchers SANMatche
 		}
 	}
 
+	if r := matchers[config.SANTypeUPN]; r != nil {
+		sans, err := getUpnSan(cert)
+		if err != nil {
+			return err
+		}
+		for _, san := range sans {
+			if r.MatchString(san) {
+				return nil
+			}
+		}
+	}
+
 	return errNoSANMatch
 }
 
@@ -255,4 +268,33 @@ func parseCertificate(pemStr string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("unknown PEM type: %s", block.Type)
 	}
 	return x509.ParseCertificate(block.Bytes)
+}
+
+func getUpnSan(cert *x509.Certificate) ([]string, error) {
+	type UPN struct {
+		Utf8String string `asn1:"utf8"`
+	}
+	type OtherName struct {
+		OID   asn1.ObjectIdentifier
+		Value UPN `asn1:"tag:0"`
+	}
+	type GeneralNames struct {
+		OtherName OtherName `asn1:"tag:0"`
+	}
+
+	var upnSANs []string
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal([]int{2, 5, 29, 17}) { // SAN extension
+			var generalNames GeneralNames
+			_, err := asn1.Unmarshal(ext.Value, &generalNames)
+			if err != nil {
+				return nil, err
+			}
+			if generalNames.OtherName.OID.Equal([]int{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}) {
+				upnSANs = append(upnSANs, generalNames.OtherName.Value.Utf8String)
+			}
+		}
+	}
+
+	return upnSANs, nil
 }

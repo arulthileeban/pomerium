@@ -366,6 +366,25 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
+	t.Run("UPN SAN", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented: true,
+			Leaf:      testValidCertWithUPNSAN,
+		}, ClientCertConstraints{SANMatchers: SANMatchers{
+			config.SANTypeUPN: regexp.MustCompile(`^test_device$`),
+		}})
+		assert.NoError(t, err, "should not return an error")
+		assert.True(t, valid, "should return true")
+
+		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented: true,
+			Leaf:      testValidCertWithURISAN,
+		}, ClientCertConstraints{SANMatchers: SANMatchers{
+			config.SANTypeDNS: regexp.MustCompile(`^test-device$`), // mismatched type
+		}})
+		assert.NoError(t, err, "should not return an error")
+		assert.False(t, valid, "should return false")
+	})
 }
 
 func TestClientCertConstraintsFromConfig(t *testing.T) {
